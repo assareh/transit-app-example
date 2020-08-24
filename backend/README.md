@@ -1,14 +1,24 @@
 # Instructions
-Please note that the [Transform secrets engine](https://www.vaultproject.io/docs/secrets/transform) is an Enterprise only feature. If you wish to use Transform in this demo, make sure you are using Vault Enterprise. The Vault Enterprise binary is available at releases.hashicorp.com/vault, and will be denoted by a +ent in the name. It will run for 30 minutes without a license before shutting down.
+Please note that the [Transform secrets engine](https://www.vaultproject.io/docs/secrets/transform) is an Enterprise only feature. If you wish to use Transform in this demo, make sure you are using Vault Enterprise. The Vault Enterprise binary is available at releases.hashicorp.com/vault, and will be denoted by +ent in the name. It will run for 30 minutes without a license before shutting down.
 
 Install flask, hvac, and mysql connector:
 ```
-pip3 install Flask mysql-connector-python hvac
+pip3 install -r requirements.txt
 ```
 
 ## Configuration
 
-The application reads a file named "config.ini" when it starts.  Database location, credentials, etc, are contained therein.  
+This application reads the following required configuration parameters from environment variables at startup:
+* `VAULT_ADDR` - Vault cluster or server address
+* `VAULT_AUTH_METHOD` - Specifying which Vault authentication method to use. Currently must be set to either `TOKEN` or `AZURE_JWT`. If set to AZURE_JWT, your Vault auth method must be configured at the default path of `jwt` with a role of `dev-role`.
+* `VAULT_DATABASE_CREDS_PATH` - Vault MySQL database dynamic credentials path
+* `VAULT_NAMESPACE` - Vault namespace
+* `VAULT_TRANSFORM_PATH` - Vault Transform engine path
+* `VAULT_TRANSIT_PATH` - Vault Transit engine path
+* `MYSQL_ADDR` - MySQL database address (omit port as it is currently hardcoded to 3306)
+
+Optional:
+* `VAULT_TOKEN` - Required if Vault auth method is set to `TOKEN`
 
 ## Run
 
@@ -17,5 +27,20 @@ Run the application from the backend folder:
 python3 app.py
 ```
 
+Or run with Docker:
+```
+docker run --name transit-app-example \
+  -p 5000:5000 \
+  -e VAULT_ADDR=http://192.168.100.2:8200 \
+  -e VAULT_AUTH_METHOD=TOKEN \
+  -e VAULT_DATABASE_CREDS_PATH=database/creds/transit-app-example \
+  -e VAULT_NAMESPACE=development \
+  -e VAULT_TOKEN=s.AvYZaHT7DAUyP6dDbj7S4ESu \
+  -e VAULT_TRANSFORM_PATH=transform \
+  -e VAULT_TRANSIT_PATH=transit \
+  -e MYSQL_ADDR=192.168.100.2 \
+  -d assareh/transit-app-example:latest
+```
+
 ### Known Issues:
-- Browser window must be greater than 1100 or so pixels wide due to a CSS issue 
+- Browser window must be greater than 1100 or so pixels wide due to a CSS issue

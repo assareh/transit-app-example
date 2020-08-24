@@ -5,6 +5,8 @@ import hvac
 import base64
 import logging
 import requests
+import os
+
 
 customer_table = '''
 CREATE TABLE IF NOT EXISTS `customers` (
@@ -21,9 +23,9 @@ CREATE TABLE IF NOT EXISTS `customers` (
 
 seed_customers = '''
 INSERT IGNORE into customers VALUES
-  (2, "3/14/69", "Larry", "Johnson", "2020-01-01T14:49:12.301977", "360-56-6750", "Tyler, Texas", "7000000"),
-  (40, "11/26/69", "Shawn", "Kemp", "2020-02-21T10:24:55.985726", "235-32-8091", "Elkhart, Indiana", "15000000"),
-  (34, "2/20/63", "Charles", "Barkley", "2019-04-09T01:10:20.548144", "531-72-1553", "Leeds, Alabama", "9000000");
+  (2, "3/14/1969", "Larry", "Johnson", "2020-01-01T14:49:12.301977", "360-56-6750", "Tyler, Texas", "7000000"),
+  (40, "11/26/1969", "Shawn", "Kemp", "2020-02-21T10:24:55.985726", "235-32-8091", "Elkhart, Indiana", "15000000"),
+  (34, "2/20/1963", "Charles", "Barkley", "2019-04-09T01:10:20.548144", "531-72-1553", "Leeds, Alabama", "9000000");
 '''
 
 logger = logging.getLogger(__name__)
@@ -40,7 +42,7 @@ class DbClient:
     # Andy adding for Transform support
     namespace = None
     transform_mount_point = None
-    ssn_role = None
+    ssn_role = "ssn"
 
     def init_db(self, uri, prt, uname, pw, db):
         self.uri = uri
@@ -61,19 +63,40 @@ class DbClient:
         self.is_initialized = True
 
     # Later we will check to see if this is None to see whether to use Vault or not
-    def init_vault(self, addr, token, namespace, path, key_name, transform_path, ssn_role):
-        if not addr or not token:
+    def init_vault(self, addr, auth, namespace, path, key_name, transform_path, ssn_role=None):
+        if not addr or not auth:
             logger.warn('Skipping initialization...')
             return
         else:
             logger.warn("Connecting to vault server: {}".format(addr))
-            self.vault_client = hvac.Client(url=addr, token=token, namespace=namespace)
+            if auth == 'TOKEN':
+                self.vault_client = hvac.Client(url=addr, token=os.environ["VAULT_TOKEN"], namespace=namespace, verify=False)
+            elif auth == 'AZURE_JWT':
+                identity_endpoint = os.environ["IDENTITY_ENDPOINT"]
+                identity_header = os.environ["IDENTITY_HEADER"]
+                RESOURCE_URL = "https://management.azure.com/"
+
+                token_auth_uri = identity_endpoint + "?resource=" + RESOURCE_URL + "&api-version=2019-08-01"
+                head_msi = {'X-IDENTITY-HEADER': identity_header}
+
+                resp = requests.get(token_auth_uri, headers=head_msi)
+                access_token = resp.json()['access_token']
+
+                logger.warn("Azure JWT access token: {}".format(access_token))
+
+                self.vault_client = hvac.Client(url=addr, namespace=namespace, verify=False)
+                self.vault_client.auth_kubernetes(  # intentional hvac misuse \
+                                                    # since python hvac jwt method incomplete
+                    mount_point='jwt',
+                    role='dev-role',
+                    jwt=access_token,
+                )
+            else:
+                logging.error("ERROR: Invalid authentication method specified.")
             self.key_name = key_name
             self.mount_point = path
             self.transform_mount_point = transform_path
-            self.ssn_role = ssn_role
             self.namespace = namespace
-            self.token = token
             logger.debug("Initialized vault_client: {}".format(self.vault_client))
 
     def vault_db_auth(self, path):
@@ -117,7 +140,6 @@ class DbClient:
             logger.error('There was an error encrypting the data: {}'.format(e))
 
     def decode_ssn(self, value):
-        # we're going to have funny stuff if ProtectRecords is false
         logger.debug('Decoding {}'.format(value))
         try:
             # transform not available in hvac, raw api call

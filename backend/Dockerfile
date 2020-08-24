@@ -3,6 +3,6 @@ RUN apt-get update -y
 RUN apt-get install -y python3-pip
 COPY . /app
 WORKDIR /app
-RUN pip3 install mysql-connector-python hvac Flask
-ENTRYPOINT ["python3"]
-CMD ["app.py"]
+RUN pip3 install -r requirements.txt
+EXPOSE 5000
+ENTRYPOINT ["python3", "app.py"]
