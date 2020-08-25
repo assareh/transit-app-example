@@ -107,7 +107,7 @@ def update_submit():
     return render_template('records.html', results = json.loads(records), record_updated = True)
 
 if __name__ == '__main__':
-  logger.warn('In Main...')
+  logger.warning('In Main...')
 
   logging.basicConfig(
     level=log_level['DEBUG'],
@@ -143,6 +143,13 @@ if __name__ == '__main__':
     pw=dbc.password,
     db="my_app"
     )
+
+  # (2, "3/14/1969", "Larry", "Johnson", "2020-01-01T14:49:12.301977", "360-56-6750", "Tyler, Texas", "7000000"),
+  # (40, "11/26/1969", "Shawn", "Kemp", "2020-02-21T10:24:55.985726", "235-32-8091", "Elkhart, Indiana", "15000000"),
+  # (34, "2/20/1963", "Charles", "Barkley", "2019-04-09T01:10:20.548144", "531-72-1553", "Leeds, Alabama", "9000000");
+
+    record = {'first_name': 'Larry', 'last_name': 'Johnson', 'birth_date': '3/14/1969', 'ssn': '360-56-6750', 'address': 'Tyler, Texas', 'salary': '7000000', 'create_date': "2020-01-01T14:49:12.301977"}
+    dbc.insert_customer_record(record)
 
     logger.info('Starting Flask server on {} listening on port {}'.format('0.0.0.0', '5000'))
     app.run(host='0.0.0.0', port=5000)

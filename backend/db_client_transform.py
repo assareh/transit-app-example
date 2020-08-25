@@ -65,10 +65,10 @@ class DbClient:
     # Later we will check to see if this is None to see whether to use Vault or not
     def init_vault(self, addr, auth, namespace, path, key_name, transform_path, ssn_role=None):
         if not addr or not auth:
-            logger.warn('Skipping initialization...')
+            logger.warning('Skipping initialization...')
             return
         else:
-            logger.warn("Connecting to vault server: {}".format(addr))
+            logger.warning("Connecting to vault server: {}".format(addr))
             if auth == 'TOKEN':
                 self.vault_client = hvac.Client(url=addr, token=os.environ["VAULT_TOKEN"], namespace=namespace, verify=False)
             elif auth == 'AZURE_JWT':
@@ -82,15 +82,16 @@ class DbClient:
                 resp = requests.get(token_auth_uri, headers=head_msi)
                 access_token = resp.json()['access_token']
 
-                logger.warn("Azure JWT access token: {}".format(access_token))
+                logger.warning("Azure JWT access token: {}".format(access_token))
 
                 self.vault_client = hvac.Client(url=addr, namespace=namespace, verify=False)
-                self.vault_client.auth_kubernetes(  # intentional hvac misuse \
+                login_response = self.vault_client.auth_kubernetes(  # intentional hvac misuse \
                                                     # since python hvac jwt method incomplete
                     mount_point='jwt',
                     role='dev-role',
                     jwt=access_token,
                 )
+                logger.warning("Vault token from JWT auth: {}".format(self.vault_client.token))                
             else:
                 logging.error("ERROR: Invalid authentication method specified.")
             self.key_name = key_name
@@ -125,15 +126,14 @@ class DbClient:
         try:
             # transform not available in hvac, raw api call
             url = self.vault_client.url + "/v1/" + self.transform_mount_point + "/encode/" + self.ssn_role
-            payload = "{\n  \"value\": \"" + value + "\",\n  \"transformation\": \"" + self.ssn_role + "-fpe\"\n}"
+            payload = "{\n  \"value\": \"" + value + "\"}"
             headers = {
                 'X-Vault-Token': self.vault_client.token,
                 'X-Vault-Namespace': self.namespace,
                 'Content-Type': "application/json",
                 'cache-control': "no-cache"
             }
-
-            response = requests.request("POST", url, data=payload, headers=headers)
+            response = requests.request("POST", url, data=payload, headers=headers, verify=False)
             logger.debug('Response: {}'.format(response.text))
             return response.json()['data']['encoded_value']
         except Exception as e:
@@ -144,15 +144,14 @@ class DbClient:
         try:
             # transform not available in hvac, raw api call
             url = self.vault_client.url + "/v1/" + self.transform_mount_point + "/decode/" + self.ssn_role
-            payload = "{\n  \"value\": \"" + value + "\",\n  \"transformation\": \"" + self.ssn_role + "-fpe\"\n}"
+            payload = "{\n  \"value\": \"" + value + "\"}"
             headers = {
                 'X-Vault-Token': self.vault_client.token,
                 'X-Vault-Namespace': self.namespace,
                 'Content-Type': "application/json",
                 'cache-control': "no-cache"
             }
-
-            response = requests.request("POST", url, data=payload, headers=headers)
+            response = requests.request("POST", url, data=payload, headers=headers, verify=False)
             logger.debug('Response: {}'.format(response.text))
             return response.json()['data']['decoded_value']
         except Exception as e:

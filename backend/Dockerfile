@@ -1,8 +1,6 @@
-FROM ubuntu:16.04
-RUN apt-get update -y
-RUN apt-get install -y python3-pip
+FROM python:3.8-slim
 COPY . /app
 WORKDIR /app
-RUN pip3 install -r requirements.txt
+RUN pip install -r requirements.txt
 EXPOSE 5000
 ENTRYPOINT ["python3", "app.py"]
