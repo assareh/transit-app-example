@@ -18,14 +18,15 @@ CREATE TABLE IF NOT EXISTS `customers` (
     PRIMARY KEY (`cust_no`)
 ) ENGINE=InnoDB;'''
 
-seed_customers = '''
-INSERT IGNORE into customers VALUES
-  (2, "3/14/1969", "Larry", "Johnson", "2020-01-01T14:49:12.301977", "360-56-6750", "Tyler, Texas", "7000000"),
-  (40, "11/26/1969", "Shawn", "Kemp", "2020-02-21T10:24:55.985726", "235-32-8091", "Elkhart, Indiana", "15000000"),
-  (34, "2/20/1963", "Charles", "Barkley", "2019-04-09T01:10:20.548144", "531-72-1553", "Leeds, Alabama", "9000000");
-'''
+# seed_customers = '''
+# INSERT IGNORE into customers VALUES
+#   (2, "3/14/1969", "Larry", "Johnson", "2020-01-01T14:49:12.301977", "360-56-6750", "Tyler, Texas", "7000000"),
+#   (40, "11/26/1969", "Shawn", "Kemp", "2020-02-21T10:24:55.985726", "235-32-8091", "Elkhart, Indiana", "15000000"),
+#   (34, "2/20/1963", "Charles", "Barkley", "2019-04-09T01:10:20.548144", "531-72-1553", "Leeds, Alabama", "9000000");
+# '''
 
 logger = logging.getLogger(__name__)
+
 
 class DbClient:
     conn = None

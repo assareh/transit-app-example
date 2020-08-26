@@ -16,19 +16,15 @@ CREATE TABLE IF NOT EXISTS `customers` (
     `last_name` varchar(255) NOT NULL,
     `create_date` varchar(255) NOT NULL,
     `social_security_number` varchar(255) NOT NULL,
+    `credit_card_number` varchar(255) NOT NULL,
     `address` varchar(255) NOT NULL,
     `salary` varchar(255) NOT NULL,
     PRIMARY KEY (`cust_no`)
 ) ENGINE=InnoDB;'''
 
-seed_customers = '''
-INSERT IGNORE into customers VALUES
-  (2, "3/14/1969", "Larry", "Johnson", "2020-01-01T14:49:12.301977", "360-56-6750", "Tyler, Texas", "7000000"),
-  (40, "11/26/1969", "Shawn", "Kemp", "2020-02-21T10:24:55.985726", "235-32-8091", "Elkhart, Indiana", "15000000"),
-  (34, "2/20/1963", "Charles", "Barkley", "2019-04-09T01:10:20.548144", "531-72-1553", "Leeds, Alabama", "9000000");
-'''
 
 logger = logging.getLogger(__name__)
+
 
 class DbClient:
     conn = None
@@ -43,6 +39,7 @@ class DbClient:
     namespace = None
     transform_mount_point = None
     ssn_role = "ssn"
+    ccn_role = "ccn"
 
     def init_db(self, uri, prt, uname, pw, db):
         self.uri = uri
@@ -57,13 +54,13 @@ class DbClient:
         cursor.execute('USE `{}`'.format(db))
         logger.info("Preparing customer table...")
         cursor.execute(customer_table)
-        cursor.execute(seed_customers)
+#        cursor.execute(seed_customers)
         self.conn.commit()
         cursor.close()
         self.is_initialized = True
 
     # Later we will check to see if this is None to see whether to use Vault or not
-    def init_vault(self, addr, auth, namespace, path, key_name, transform_path, ssn_role=None):
+    def init_vault(self, addr, auth, namespace, path, key_name, transform_path, transform_masking_path, ssn_role=None):
         if not addr or not auth:
             logger.warning('Skipping initialization...')
             return
@@ -71,7 +68,7 @@ class DbClient:
             logger.warning("Connecting to vault server: {}".format(addr))
             if auth == 'TOKEN':
                 self.vault_client = hvac.Client(url=addr, token=os.environ["VAULT_TOKEN"], namespace=namespace, verify=False)
-            elif auth == 'AZURE_JWT':
+            elif auth == 'AZURE_JWT':  # could use https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd ?
                 identity_endpoint = os.environ["IDENTITY_ENDPOINT"]
                 identity_header = os.environ["IDENTITY_HEADER"]
                 RESOURCE_URL = "https://management.azure.com/"
@@ -86,17 +83,18 @@ class DbClient:
 
                 self.vault_client = hvac.Client(url=addr, namespace=namespace, verify=False)
                 login_response = self.vault_client.auth_kubernetes(  # intentional hvac misuse \
-                                                    # since python hvac jwt method incomplete
-                    mount_point='jwt',
-                    role='dev-role',
-                    jwt=access_token,
-                )
-                logger.warning("Vault token from JWT auth: {}".format(self.vault_client.token))                
+                                                                     # since python hvac jwt method incomplete
+                                                                   mount_point='jwt',
+                                                                   role='dev-role',
+                                                                   jwt=access_token,
+                                                                  )
+                logger.warning("Vault token from JWT auth: {}".format(self.vault_client.token))
             else:
                 logging.error("ERROR: Invalid authentication method specified.")
             self.key_name = key_name
             self.mount_point = path
             self.transform_mount_point = transform_path
+            self.transform_masking_mount_point = transform_masking_path
             self.namespace = namespace
             logger.debug("Initialized vault_client: {}".format(self.vault_client))
 
@@ -113,10 +111,10 @@ class DbClient:
     def encrypt(self, value):
         try:
             response = self.vault_client.secrets.transit.encrypt_data(
-                mount_point = self.mount_point,
-                name = self.key_name,
-                plaintext = base64.b64encode(value.encode()).decode('ascii')
-            )
+                                                                      mount_point=self.mount_point,
+                                                                      name=self.key_name,
+                                                                      plaintext=base64.b64encode(value.encode()).decode('ascii')
+                                                                     )
             logger.debug('Response: {}'.format(response))
             return response['data']['ciphertext']
         except Exception as e:
@@ -126,6 +124,23 @@ class DbClient:
         try:
             # transform not available in hvac, raw api call
             url = self.vault_client.url + "/v1/" + self.transform_mount_point + "/encode/" + self.ssn_role
+            payload = "{\n  \"value\": \"" + value + "\"}"
+            headers = {
+                'X-Vault-Token': self.vault_client.token,
+                'X-Vault-Namespace': self.namespace,
+                'Content-Type': "application/json",
+                'cache-control': "no-cache"
+            }
+            response = requests.request("POST", url, data=payload, headers=headers, verify=False)
+            logger.debug('Response: {}'.format(response.text))
+            return response.json()['data']['encoded_value']
+        except Exception as e:
+            logger.error('There was an error encrypting the data: {}'.format(e))
+
+    def encode_ccn(self, value):
+        try:
+            # transform not available in hvac, raw api call
+            url = self.vault_client.url + "/v1/" + self.transform_masking_mount_point + "/encode/" + self.ccn_role
             payload = "{\n  \"value\": \"" + value + "\"}"
             headers = {
                 'X-Vault-Token': self.vault_client.token,
@@ -166,10 +181,10 @@ class DbClient:
         else:
             try:
                 response = self.vault_client.secrets.transit.decrypt_data(
-                    mount_point = self.mount_point,
-                    name = self.key_name,
-                    ciphertext = value
-                )
+                                                                          mount_point=self.mount_point,
+                                                                          name=self.key_name,
+                                                                          ciphertext=value
+                                                                         )
                 logger.debug('Response: {}'.format(response))
                 plaintext = response['data']['plaintext']
                 logger.debug('Plaintext (base64 encoded): {}'.format(plaintext))
@@ -180,7 +195,7 @@ class DbClient:
                 logger.error('There was an error encrypting the data: {}'.format(e))
 
     # Long running apps may expire the DB connection
-    def _execute_sql(self,sql,cursor):
+    def _execute_sql(self, sql, cursor):
         try:
             cursor.execute(sql)
             return 1
@@ -204,7 +219,7 @@ class DbClient:
             else:
                 logger.error(err)
 
-    def get_customer_records(self, num = None, raw = None):
+    def get_customer_records(self, num=None, raw=None):
         if num is None:
             num = 50
         statement = 'SELECT * FROM `customers` LIMIT {}'.format(num)
@@ -220,8 +235,9 @@ class DbClient:
                 r['last_name'] = row[3]
                 r['create_date'] = row[4]
                 r['ssn'] = row[5]
-                r['address'] = row[6]
-                r['salary'] = row[7]
+                r['ccn'] = row[6]
+                r['address'] = row[7]
+                r['salary'] = row[8]
                 if self.vault_client is not None and not raw:
                     r['birth_date'] = self.decrypt(r['birth_date'])
                     r['ssn'] = self.decode_ssn(r['ssn'])
@@ -246,8 +262,9 @@ class DbClient:
                 r['last_name'] = row[3]
                 r['create_date'] = row[4]
                 r['ssn'] = row[5]
-                r['address'] = row[6]
-                r['salary'] = row[7]
+                r['ssn'] = row[6]
+                r['address'] = row[7]
+                r['salary'] = row[8]
                 if self.vault_client is not None:
                     r['birth_date'] = self.decrypt(r['birth_date'])
                     r['ssn'] = self.decode_ssn(r['ssn'])
@@ -260,11 +277,11 @@ class DbClient:
 
     def insert_customer_record(self, record):
         if self.vault_client is None:
-            statement = '''INSERT INTO `customers` (`birth_date`, `first_name`, `last_name`, `create_date`, `social_security_number`, `address`, `salary`)
-                            VALUES  ("{}", "{}", "{}", "{}", "{}", "{}", "{}");'''.format(record['birth_date'], record['first_name'], record['last_name'], record['create_date'], record['ssn'], record['address'], record['salary'] )
+            statement = '''INSERT INTO `customers` (`birth_date`, `first_name`, `last_name`, `create_date`, `social_security_number`, `credit_card_number`, `address`, `salary`)
+                            VALUES  ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}");'''.format(record['birth_date'], record['first_name'], record['last_name'], record['create_date'], record['ssn'], record['ccn'], record['address'], record['salary'])
         else:
-            statement = '''INSERT INTO `customers` (`birth_date`, `first_name`, `last_name`, `create_date`, `social_security_number`, `address`, `salary`)
-                            VALUES  ("{}", "{}", "{}", "{}", "{}", "{}", "{}");'''.format(self.encrypt(record['birth_date']), record['first_name'], record['last_name'], record['create_date'], self.encode_ssn(record['ssn']), self.encrypt(record['address']), self.encrypt(record['salary']) )
+            statement = '''INSERT INTO `customers` (`birth_date`, `first_name`, `last_name`, `create_date`, `social_security_number`, `credit_card_number`, `address`, `salary`)
+                            VALUES  ("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}");'''.format(self.encrypt(record['birth_date']), record['first_name'], record['last_name'], record['create_date'], self.encode_ssn(record['ssn']), self.encode_ccn(record['ccn']), self.encrypt(record['address']), self.encrypt(record['salary']))
         logger.debug('SQL Statement: {}'.format(statement))
         cursor = self.conn.cursor()
         self._execute_sql(statement, cursor)
@@ -274,12 +291,12 @@ class DbClient:
     def update_customer_record(self, record):
         if self.vault_client is None:
             statement = '''UPDATE `customers`
-                       SET birth_date = "{}", first_name = "{}", last_name = "{}", social_security_number = "{}", address = "{}", salary = "{}"
-                       WHERE cust_no = {};'''.format(record['birth_date'], record['first_name'], record['last_name'], record['ssn'], record['address'], record['salary'], record['cust_no'] )
+                       SET birth_date = "{}", first_name = "{}", last_name = "{}", social_security_number = "{}", credit_card_number = "{}", address = "{}", salary = "{}"
+                       WHERE cust_no = {};'''.format(record['birth_date'], record['first_name'], record['last_name'], record['ssn'], record['ccn'], record['address'], record['salary'], record['cust_no'])
         else:
             statement = '''UPDATE `customers`
-                       SET birth_date = "{}", first_name = "{}", last_name = "{}", social_security_number = "{}", address = "{}", salary = "{}"
-                       WHERE cust_no = {};'''.format(self.encrypt(record['birth_date']), record['first_name'], record['last_name'], self.encrypt(record['ssn']), self.encrypt(record['address']), self.encrypt(record['salary']), record['cust_no'] )
+                       SET birth_date = "{}", first_name = "{}", last_name = "{}", social_security_number = "{}", credit_card_number = "{}", address = "{}", salary = "{}"
+                       WHERE cust_no = {};'''.format(self.encrypt(record['birth_date']), record['first_name'], record['last_name'], self.encode_ssn(record['ssn']), self.encode_ccn(record['ccn']), self.encrypt(record['address']), self.encrypt(record['salary']), record['cust_no'])
         logger.debug('Sql Statement: {}'.format(statement))
         cursor = self.conn.cursor()
         self._execute_sql(statement, cursor)
