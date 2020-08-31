@@ -85,7 +85,7 @@ class DbClient:
                 login_response = self.vault_client.auth_kubernetes(  # intentional hvac misuse \
                                                                      # since python hvac jwt method incomplete
                                                                    mount_point='jwt',
-                                                                   role='dev-role',
+                                                                   role='webapp-role',
                                                                    jwt=access_token,
                                                                   )
                 logger.warning("Vault token from JWT auth: {}".format(self.vault_client.token))

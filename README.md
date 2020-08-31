@@ -4,9 +4,9 @@ This repo seeks to provide an example that demonstrates how to protect sensitive
 
 The [Transit secrets engine](https://www.vaultproject.io/docs/secrets/transit) in HashiCorp Vault provides an API that can be used to perform a variety of cryptographic operations, such as encryption, decryption, signing, hashing, and HMAC. It can also be used for secure key generation, or providing a unified method for random number generation.
 
-The [Transform secrets engine](https://www.vaultproject.io/docs/secrets/transform) in HashiCorp Vault provides an API that can be used to perform secure data transformation and tokenization against a provided input value. This can be used to implement format preserving encryption as well as masking of sensitive data. 
+The [Transform secrets engine](https://www.vaultproject.io/docs/secrets/transform) in HashiCorp Vault provides an API that can be used to perform secure data transformation and tokenization against a provided input value. This can be used to implement format preserving encryption as well as masking of sensitive data.
 
-This repo launches a simple CRUD app that can integrate with Vault to protect customer records. Database dynamic credentials are also used. 
+This repo launches a simple CRUD app that can integrate with Vault to protect customer records. Database dynamic credentials are also used.
 
 ![](demo.png?raw=true)
 
@@ -17,7 +17,7 @@ Please note that the [Transform secrets engine](https://www.vaultproject.io/docs
 
 This application reads the following required configuration parameters from environment variables at startup:
 * `VAULT_ADDR` - Vault cluster or server address
-* `VAULT_AUTH_METHOD` - Specifying which Vault authentication method to use. Currently must be set to either `TOKEN` or `AZURE_JWT`. If set to AZURE_JWT, your Vault auth method must be configured at the default path of `jwt` with a role of `dev-role`.
+* `VAULT_AUTH_METHOD` - Specifying which Vault authentication method to use. Currently must be set to either `TOKEN` or `AZURE_JWT`. If set to AZURE_JWT, your Vault auth method must be configured at the default path of `jwt` with a role of `webapp-role`.
 * `VAULT_DATABASE_CREDS_PATH` - Vault MySQL database dynamic credentials path
 * `VAULT_NAMESPACE` - Vault namespace
 * `VAULT_TRANSFORM_PATH` - Vault Transform engine path

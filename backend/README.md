@@ -10,7 +10,7 @@ pip3 install -r requirements.txt
 
 This application reads the following required configuration parameters from environment variables at startup:
 * `VAULT_ADDR` - Vault cluster or server address
-* `VAULT_AUTH_METHOD` - Specifying which Vault authentication method to use. Currently must be set to either `TOKEN` or `AZURE_JWT`. If set to AZURE_JWT, your Vault auth method must be configured at the default path of `jwt` with a role of `dev-role`.
+* `VAULT_AUTH_METHOD` - Specifying which Vault authentication method to use. Currently must be set to either `TOKEN` or `AZURE_JWT`. If set to AZURE_JWT, your Vault auth method must be configured at the default path of `jwt` with a role of `webapp-role`.
 * `VAULT_DATABASE_CREDS_PATH` - Vault MySQL database dynamic credentials path
 * `VAULT_NAMESPACE` - Vault namespace
 * `VAULT_TRANSFORM_PATH` - Vault Transform engine path
