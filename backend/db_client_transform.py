@@ -4,8 +4,10 @@ import datetime
 import hvac
 import base64
 import logging
+import re
 import requests
 import os
+from azure.identity import ManagedIdentityCredential
 
 
 customer_table = '''
@@ -68,25 +70,16 @@ class DbClient:
             logger.warning("Connecting to vault server: {}".format(addr))
             if auth == 'TOKEN':
                 self.vault_client = hvac.Client(url=addr, token=os.environ["VAULT_TOKEN"], namespace=namespace, verify=False)
-            elif auth == 'AZURE_JWT':  # could use https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd ?
-                identity_endpoint = os.environ["IDENTITY_ENDPOINT"]
-                identity_header = os.environ["IDENTITY_HEADER"]
-                RESOURCE_URL = "https://management.azure.com/"
-
-                token_auth_uri = identity_endpoint + "?resource=" + RESOURCE_URL + "&api-version=2019-08-01"
-                head_msi = {'X-IDENTITY-HEADER': identity_header}
-
-                resp = requests.get(token_auth_uri, headers=head_msi)
-                access_token = resp.json()['access_token']
-
-                logger.warning("Azure JWT access token: {}".format(access_token))
-
+            elif auth == 'AZURE_JWT':
+                managed_identity = ManagedIdentityCredential()
+                access_token = managed_identity.get_token('https://management.azure.com/')
+                logger.warning("Azure JWT access_token.token: {}".format(access_token.token))
                 self.vault_client = hvac.Client(url=addr, namespace=namespace, verify=False)
                 login_response = self.vault_client.auth_kubernetes(  # intentional hvac misuse \
                                                                      # since python hvac jwt method incomplete
                                                                    mount_point='jwt',
                                                                    role='webapp-role',
-                                                                   jwt=access_token,
+                                                                   jwt=access_token.token
                                                                   )
                 logger.warning("Vault token from JWT auth: {}".format(self.vault_client.token))
             else:
