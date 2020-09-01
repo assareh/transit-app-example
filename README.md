@@ -26,7 +26,7 @@ This application reads the following required configuration parameters from envi
 Optional:
 * `VAULT_TOKEN` - Provide if Vault token auth is desired
 
-This application currently supports two Vault authentication methods: [token](https://www.vaultproject.io/docs/auth/token) auth or [JWT](https://www.vaultproject.io/docs/auth/jwt) auth with an Azure identity token. If a `VAULT_TOKEN` is provided it will be used. Otherwise the app will try retrieving an access token from [Azure MSI](https%3A%2F%2Fdocs.microsoft.com%2Fen-us%2Fazure%2Factive-directory%2Fmanaged-identities-azure-resources%2Foverview) and logging into Vault using the JWT auth method. The JWT auth method must be configured at the default path of `jwt` with a role of `webapp-role`.
+This application currently supports two Vault authentication methods: [token](https://www.vaultproject.io/docs/auth/token) auth or [JWT](https://www.vaultproject.io/docs/auth/jwt) auth with an Azure identity token. If a `VAULT_TOKEN` is provided it will be used. Otherwise the app will try retrieving an access token from [Azure MSI](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview) and logging into Vault using the JWT auth method. The JWT auth method must be configured at the default path of `jwt` with a role of `webapp-role`.
 
 ## Run
 ```
