@@ -17,7 +17,6 @@ Please note that the [Transform secrets engine](https://www.vaultproject.io/docs
 
 This application reads the following required configuration parameters from environment variables at startup:
 * `VAULT_ADDR` - Vault cluster or server address
-* `VAULT_AUTH_METHOD` - Specifying which Vault authentication method to use. Currently must be set to either `TOKEN` or `AZURE_JWT`. If set to AZURE_JWT, your Vault auth method must be configured at the default path of `jwt` with a role of `webapp-role`.
 * `VAULT_DATABASE_CREDS_PATH` - Vault MySQL database dynamic credentials path
 * `VAULT_NAMESPACE` - Vault namespace
 * `VAULT_TRANSFORM_PATH` - Vault Transform engine path
@@ -25,14 +24,15 @@ This application reads the following required configuration parameters from envi
 * `MYSQL_ADDR` - MySQL database address (omit port as it is currently hardcoded to 3306)
 
 Optional:
-* `VAULT_TOKEN` - Required if Vault auth method is set to `TOKEN`
+* `VAULT_TOKEN` - Provide if Vault token auth is desired
+
+This application currently supports two Vault authentication methods: [token](https://www.vaultproject.io/docs/auth/token) auth or [JWT](https://www.vaultproject.io/docs/auth/jwt) auth with an Azure identity token. If a `VAULT_TOKEN` is provided it will be used. Otherwise the app will try retrieving an access token from [Azure MSI](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview) and logging into Vault using the JWT auth method. The JWT auth method must be configured at the default path of `jwt` with a role of `webapp-role`.
 
 ## Run
 ```
 docker run --name transit-app-example \
   -p 5000:5000 \
   -e VAULT_ADDR=http://192.168.100.2:8200 \
-  -e VAULT_AUTH_METHOD=TOKEN \
   -e VAULT_DATABASE_CREDS_PATH=database/creds/transit-app-example \
   -e VAULT_NAMESPACE=development \
   -e VAULT_TOKEN=s.AvYZaHT7DAUyP6dDbj7S4ESu \
