@@ -33,7 +33,6 @@ This application currently supports two Vault authentication methods: [token](ht
 docker run --name transit-app-example \
   -p 5000:5000 \
   -e VAULT_ADDR=http://192.168.100.2:8200 \
-  -e VAULT_AUTH_METHOD=TOKEN \
   -e VAULT_DATABASE_CREDS_PATH=database/creds/transit-app-example \
   -e VAULT_NAMESPACE=development \
   -e VAULT_TOKEN=s.AvYZaHT7DAUyP6dDbj7S4ESu \
