@@ -129,7 +129,6 @@ if __name__ == '__main__':
     try:
         vault_address = os.environ["VAULT_ADDR"]
         vault_namespace = os.environ["VAULT_NAMESPACE"]
-        vault_auth_method = os.environ["VAULT_AUTH_METHOD"]
         vault_transit_path = os.environ["VAULT_TRANSIT_PATH"]
         vault_transform_path = os.environ["VAULT_TRANSFORM_PATH"]
         vault_transform_masking_path = os.environ["VAULT_TRANSFORM_MASKING_PATH"]
@@ -146,7 +145,7 @@ if __name__ == '__main__':
             except Exception as e:
                 logging.error("There was an error starting the server: {}".format(e))
 
-        dbc.init_vault(addr=vault_address, auth=vault_auth_method, namespace=vault_namespace, path=vault_transit_path, key_name="customer-key", transform_path=vault_transform_path, transform_masking_path=vault_transform_masking_path)
+        dbc.init_vault(addr=vault_address, namespace=vault_namespace, path=vault_transit_path, key_name="customer-key", transform_path=vault_transform_path, transform_masking_path=vault_transform_masking_path)
 
         logger.debug('db_auth')
         dbc.vault_db_auth(vault_database_creds_path)

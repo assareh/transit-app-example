@@ -61,8 +61,8 @@ class DbClient:
         self.is_initialized = True
 
     # Later we will check to see if this is None to see whether to use Vault or not
-    def init_vault(self, addr, auth, namespace, path, key_name, transform_path, transform_masking_path, ssn_role=None):
-        if not addr or not auth:
+    def init_vault(self, addr, namespace, path, key_name, transform_path, transform_masking_path, ssn_role=None):
+        if not addr:
             logger.warning('Skipping initialization...')
             return
         else:
