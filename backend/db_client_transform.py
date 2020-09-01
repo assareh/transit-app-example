@@ -56,7 +56,6 @@ class DbClient:
         cursor.execute('USE `{}`'.format(db))
         logger.info("Preparing customer table...")
         cursor.execute(customer_table)
-#        cursor.execute(seed_customers)
         self.conn.commit()
         cursor.close()
         self.is_initialized = True
@@ -68,28 +67,31 @@ class DbClient:
             return
         else:
             logger.warning("Connecting to vault server: {}".format(addr))
-            if auth == 'TOKEN':
-                self.vault_client = hvac.Client(url=addr, token=os.environ["VAULT_TOKEN"], namespace=namespace, verify=False)
-            elif auth == 'AZURE_JWT':
-                managed_identity = ManagedIdentityCredential()
-                access_token = managed_identity.get_token('https://management.azure.com/')
-                logger.warning("Azure JWT access_token.token: {}".format(access_token.token))
-                self.vault_client = hvac.Client(url=addr, namespace=namespace, verify=False)
-                login_response = self.vault_client.auth_kubernetes(  # intentional hvac misuse \
-                                                                     # since python hvac jwt method incomplete
-                                                                   mount_point='jwt',
-                                                                   role='webapp-role',
-                                                                   jwt=access_token.token
-                                                                  )
-                logger.warning("Vault token from JWT auth: {}".format(self.vault_client.token))
-            else:
-                logging.error("ERROR: Invalid authentication method specified.")
-            self.key_name = key_name
-            self.mount_point = path
-            self.transform_mount_point = transform_path
-            self.transform_masking_mount_point = transform_masking_path
-            self.namespace = namespace
-            logger.debug("Initialized vault_client: {}".format(self.vault_client))
+        try:  # try token first, then other auth methods...
+            self.vault_client = hvac.Client(url=addr, token=os.environ["VAULT_TOKEN"], namespace=namespace, verify=False)
+        except Exception as e:
+            logging.error("Token auth failed, either token not present or invalid: {}".format(e))
+            pass
+        try:  # Azure JWT
+            managed_identity = ManagedIdentityCredential()
+            access_token = managed_identity.get_token('https://management.azure.com/')
+            logger.warning("Azure JWT access_token.token: {}".format(access_token.token))
+            self.vault_client = hvac.Client(url=addr, namespace=namespace, verify=False)
+            login_response = self.vault_client.auth_kubernetes(  # intentional hvac misuse \
+                                                                 # since python hvac jwt method incomplete
+                                                               mount_point='jwt',
+                                                               role='webapp-role',
+                                                               jwt=access_token.token
+                                                              )
+            logger.warning("Vault token from JWT auth: {}".format(login_response['auth']['client_token']))
+        except Exception as e:
+            logging.error("Azure JWT auth failed, either token not present or invalid: {}".format(e))
+        self.key_name = key_name
+        self.mount_point = path
+        self.transform_mount_point = transform_path
+        self.transform_masking_mount_point = transform_masking_path
+        self.namespace = namespace
+        logger.debug("Initialized vault_client: {}".format(self.vault_client))
 
     def vault_db_auth(self, path):
         try:
