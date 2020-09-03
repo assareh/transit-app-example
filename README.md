@@ -20,6 +20,7 @@ This application reads the following required configuration parameters from envi
 * `VAULT_DATABASE_CREDS_PATH` - Vault MySQL database dynamic credentials path
 * `VAULT_NAMESPACE` - Vault namespace
 * `VAULT_TRANSFORM_PATH` - Vault Transform engine path
+* `VAULT_TRANSFORM_MASKING_PATH` - Vault Transform engine path for masking
 * `VAULT_TRANSIT_PATH` - Vault Transit engine path
 * `MYSQL_ADDR` - MySQL database address (omit port as it is currently hardcoded to 3306)
 
@@ -37,6 +38,7 @@ docker run --name transit-app-example \
   -e VAULT_NAMESPACE=development \
   -e VAULT_TOKEN=s.AvYZaHT7DAUyP6dDbj7S4ESu \
   -e VAULT_TRANSFORM_PATH=transform \
+  -e VAULT_TRANSFORM_MASKING_PATH=masking/transform \
   -e VAULT_TRANSIT_PATH=transit \
   -e MYSQL_ADDR=192.168.100.2 \
   -d assareh/transit-app-example:latest
